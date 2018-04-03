@@ -1,0 +1,11 @@
+library(tidyverse)
+library(smartcallr)
+library(BSgenome.Hsapiens.1000genomes.hs37d5)
+load('./data/platinum_snps.RDA')
+#fr <- load_variants('./data/aml31R_mutect2.filtered.vcf',BSgenome.Hsapiens.1000genomes.hs37d5,sample_name="aml31R")
+fr <- compute_odds('./data/aml31R_mutect2.filtered.vcf',BSgenome.Hsapiens.1000genomes.hs37d5,sample_name="aml31R")
+fr$chrom <- as.character(fr$seqnames)
+fr$start <- as.character(fr$start)
+ 
+joined <- fr %>% dplyr::full_join(platinum_snps,by=c("chrom"="chromosome_name","start"="start"))
+joined <- joined %>% dplyr::select(RELAPSE_WGS_VAF,RELAPSE_ALLDNA_VAF,mutect_odds,prior_odds,softFilterMatrix.clustered_events,pass_all,tlod_only,chrom,start,everything())
