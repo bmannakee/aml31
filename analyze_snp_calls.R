@@ -36,6 +36,12 @@ truth_table <- joined %>% dplyr::filter(!is.na(tumor_vaf) & (pass_all | tlod_onl
 sscurves_mutect <- precrec::evalmod(scores=truth_table$mutect_odds,labels=truth_table$present)
 sscurves_prior <-  precrec::evalmod(scores=truth_table$prior_odds,labels=truth_table$present)
 
-p1 <- ggplot(joined,aes(x=log10(mutect_odds),y=log10(prior_odds))) + geom_point() + xlim(c(-3,3)) + ylim(c(-3,3))
+p1 <- ggplot(truth_table,aes(x=log10(mutect_odds),y=log10(prior_odds))) + geom_point() + xlim(c(-3,3)) + ylim(c(-3,3)) + theme_bw() + ggtitle("Comparison of odds for called variants only")
+p2 <- ggplot(joined,aes(x=log10(mutect_odds),y=log10(prior_odds))) + geom_point() + xlim(c(-3,3)) + ylim(c(-3,3)) + theme_bw() + ggtitle("Comparison of odds for all variants")
 
-prior_density_plot <- ggplot(joined,aes(logit_prior)) + geom_density() +  geom_vline(xintercept=-6) + theme_classic() 
+prior_density_plot <- ggplot(joined,aes(logit_prior)) + geom_density() +  geom_vline(xintercept=-6) + theme_classic() + xlab('Log prior - line at -6 is MuTect') + ggtitle('Observed distribution of\nprior values in primary aml')
+prior_table <- unique(joined$joint_prior)
+prior_table <- prior_table[!is.na(prior_table)]
+prior_fr <- data_frame(prior=prior_table)
+prior_plot <- ggplot(prior_fr,aes(prior)) + geom_density() + geom_vline(xintercept=1e-6) + theme_classic() + xlab('Log prior - line at -6 is MuTect') + ggtitle("Density of the prior over all contexts. (n=96)")
+prior_fr <- prior_fr %>% left_join(joined,by=c('prior'='joint_prior')) %>% dplyr::select(prior,context,cref,calt) %>% unique()
