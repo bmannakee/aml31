@@ -15,8 +15,8 @@ load("./primary_score_fr.RDA")
 
 
 # start looking at cutpoints
-prior_cut <- cutpointr(primary_score_fr,log_prior_odds,present,metric=accuracy)
-mutect_cut <- cutpointr(primary_score_fr,log_mutect_odds,present,metric=accuracy)
+prior_cut <- cutpointr(primary_score_fr,log_prior_odds,present,metric=F1_score)
+mutect_cut <- cutpointr(primary_score_fr,log_mutect_odds,present,metric=F1_score)
 summary(prior_cut)
 plot(prior_cut)
 summary(mutect_cut)
@@ -34,10 +34,14 @@ load("./relapse_score_fr.RDA")
 
 
 # start looking at cutpoints
-prior_cut <- cutpointr(relapse_score_fr,log_prior_odds,present,metric=F1_score)
-mutect_cut <- cutpointr(relapse_score_fr,log_mutect_odds,present,metric=F1_score)
+prior_cut <- cutpointr(relapse_score_fr,log_prior_odds,present,metric=youden)
+mutect_cut <- cutpointr(relapse_score_fr,log_mutect_odds,present,metric=youden)
 summary(prior_cut)
 plot(prior_cut)
 summary(mutect_cut)
 plot(mutect_cut)
 ```
+
+
+- Can we learn anything about how we are doing in the primary from things found in the relapse
+- what the hell is going on with the very high odds calls in the false column.
