@@ -6,7 +6,9 @@ output: pdf_document
 ---
 ## PRIMARY
 
-```{r primarycutpoints, message=F,warning=F}
+All cutpoint evaluations are made using the F1 score. There are many scoring methods available. They optimize different things, but none shows a significant difference between the two methods (prior/mutect), so I focus on F1 here. The optimal cutpoint is the log odds that maximizes F1 on the gold standard dataset, confined to those snps that were identified in the primary tumor (gold_snps contains both primary and relapse specific snps).
+
+```{r primarycutpoints, message=F,warning=F,echo=F}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(cutpointr)
@@ -15,17 +17,69 @@ load("./primary_score_fr.RDA")
 
 
 # start looking at cutpoints
-prior_cut <- cutpointr(primary_score_fr,log_prior_odds,present,metric=F1_score)
-mutect_cut <- cutpointr(primary_score_fr,log_mutect_odds,present,metric=F1_score)
-summary(prior_cut)
-plot(prior_cut)
-summary(mutect_cut)
+prior_cut <- cutpointr(primary_score_fr,log_prior_odds,present,metric=F1_score,boot_runs=100)
+mutect_cut <- cutpointr(primary_score_fr,log_mutect_odds,present,metric=F1_score,boot_runs=100)
+#summary(prior_cut)$confusion_matrix
+#plot(prior_cut)
+#summary(mutect_cut)$confusion_matrix
+#plot(mutect_cut)
+```
+
+For the MuTect method, the confusion matrix is:
+
+`r paste0(summary(mutect_cut)$confusion_matrix)`
+
+For the Prior method the confusion matrix is:
+
+`r paste0(summary(prior_cut)$confusion_matrix)`
+
+We can plot the results for each.
+First the MuTect method:
+
+```{r primarymutectplots, message=F,warning=F,echo=F}
 plot(mutect_cut)
 ```
 
+\newpage
+
+And the prior method:
+
+```{r primarypriorplots, message=F,warning=F,echo=F}
+plot(prior_cut)
+```
+
+The optimal cutpoint for the primary is very high regardless of method. This is likely a result of the fact that they didn't look for the low frequency hits.
+
+\newpage
+
+We can also plot the F1 score as a function of log odds:
+
+```{r primaryf1plots, message=F,warning=F,echo=F}
+library(patchwork)
+p1 <- plot_metric(mutect_cut) + theme_bw() + ylim(c(.72,.90)) + labs(title="F1 vs. logodds for MuTect",subtitle="Primary sample")
+p2 <- plot_metric(prior_cut) + theme_bw() + ylim(c(.72,.90)) + labs(title="F1 vs. logodds for Prior",subtitle="Primary sample")
+p1 + p2
+```
+
+
+\newpage
+
+We can also look at specific other metrics, like the number of true positives vs. log odds:
+
+```{r primarytpplots, message=F,warning=F,echo=F}
+p3 <- plot_cutpointr(mutect_cut,xvar=cutpoint,yvar=tp) + theme_bw() + ylim(c(900,1400)) + labs(title="True Positives vs. logodds for MuTect",subtitle="Primary sample")
+p4 <- plot_cutpointr(prior_cut,xvar=cutpoint,yvar=tp) + theme_bw() + ylim(c(900,1400)) + labs(title="True Positives vs. logodds for Prior",subtitle="Primary sample")
+p3 + p4
+```
+
+
+In general, there is not much difference here. Particularly in the primary, the low frequency variants we call don't seem to be tested, so we don't have visibility into the portion of the dataset where we expect the prior to make a difference.
+
+\newpage
+
 ## RELAPSE
 
-```{r relapsecutpoints, message=F,warning=F}
+```{r relapsecutpoints, message=F,warning=F,echo=F}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(cutpointr)
@@ -34,14 +88,137 @@ load("./relapse_score_fr.RDA")
 
 
 # start looking at cutpoints
-prior_cut <- cutpointr(relapse_score_fr,log_prior_odds,present,metric=youden)
-mutect_cut <- cutpointr(relapse_score_fr,log_mutect_odds,present,metric=youden)
-summary(prior_cut)
-plot(prior_cut)
-summary(mutect_cut)
-plot(mutect_cut)
+mutect_cut_relapse <- cutpointr(relapse_score_fr,log_mutect_odds,present,metric=F1_score,boot_runs=100)
+prior_cut_relapse <- cutpointr(relapse_score_fr,log_prior_odds,present,metric=F1_score,boot_runs=100)
+
 ```
 
 
-- Can we learn anything about how we are doing in the primary from things found in the relapse
-- what the hell is going on with the very high odds calls in the false column.
+For the MuTect method, the confusion matrix is:
+
+`r paste0(summary(mutect_cut_relapse)$confusion_matrix)`
+
+For the Prior method the confusion matrix is:
+
+`r paste0(summary(prior_cut_relapse)$confusion_matrix)`
+
+We can plot the results for each.
+First the MuTect method:
+
+```{r relapsemutectplots, message=F,warning=F,echo=F}
+plot(mutect_cut_relapse)
+```
+
+\newpage
+
+And the prior method:
+
+```{r relapsepriorplots, message=F,warning=F,echo=F}
+plot(prior_cut_relapse)
+```
+
+The optimal cutpoint for the relapse is much lower regardless of method. This is due to the lower depth of the relapse sequence.
+
+\newpage
+
+We can also plot the F1 score as a function of log odds:
+
+```{r relapsef1plots, message=F,warning=F,echo=F}
+library(patchwork)
+p5 <- plot_metric(mutect_cut_relapse) + theme_bw() + ylim(c(0,.80)) + labs(title="F1 vs. logodds for MuTect",subtitle="Relapse sample")
+p6 <- plot_metric(prior_cut_relapse) + theme_bw() + ylim(c(0,.80)) + labs(title="F1 vs. logodds for Prior",subtitle="Relapse sample")
+p5 + p6
+```
+
+
+\newpage
+
+We can also look at specific other metrics, like the number of true positives vs. log odds:
+
+```{r relapsetpplots, message=F,warning=F,echo=F}
+p7 <- plot_cutpointr(mutect_cut_relapse,xvar=cutpoint,yvar=tp) + theme_bw() + ylim(c(0,1200)) + labs(title="True Positives vs. logodds for MuTect",subtitle="Relapse sample")
+p8 <- plot_cutpointr(prior_cut_relapse,xvar=cutpoint,yvar=tp) + theme_bw() + ylim(c(0,1200)) + labs(title="True Positives vs. logodds for Prior",subtitle="Relapse sample")
+p7 + p8
+```
+
+There is very little difference in the Relapse between the two methods as well.
+
+## All Gold standard in primary
+
+In the above, I am only looking at those snps that have VAF > 0 in the Primary/Relapse. One possibility is to make the (unjustifiable) assumption that anything found in the relapse was also in the primary, but perhaps at very low levels. If we make the assumption that the entire Gold set is a truth set, we can perhaps see a difference between the methods.
+
+Note: This is a very strangely constructed dataset, and it is not very easy to interpret what is going on here. But at the moment I don't see any evidence that this is a useful way to look at this.
+
+\newpage
+
+```{r primaryallgoldcutpoints, message=F,warning=F,echo=F}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(cutpointr)
+load("./primary_all_gold_score_fr.RDA")
+#library(patchwork)
+
+
+# start looking at cutpoints
+prior_cut_all <- cutpointr(primary_all_gold_score_fr,log_prior_odds,present,metric=F1_score,boot_runs=100)
+mutect_cut_all <- cutpointr(primary_all_gold_score_fr,log_mutect_odds,present,metric=F1_score,boot_runs=100)
+#summary(prior_cut)$confusion_matrix
+#plot(prior_cut)
+#summary(mutect_cut)$confusion_matrix
+#plot(mutect_cut)
+```
+
+For the MuTect method, the confusion matrix is:
+
+`r paste0(summary(mutect_cut_all)$confusion_matrix)`
+
+For the Prior method the confusion matrix is:
+
+`r paste0(summary(prior_cut_all)$confusion_matrix)`
+
+We can plot the results for each.
+First the MuTect method:
+
+```{r allmutectplots, message=F,warning=F,echo=F}
+plot(mutect_cut_all)
+```
+
+\newpage
+
+And the prior method:
+
+```{r allpriorplots, message=F,warning=F,echo=F}
+plot(prior_cut_all)
+```
+
+
+\newpage
+
+We can also plot the F1 score as a function of log odds:
+
+```{r allf1plots, message=F,warning=F,echo=F}
+library(patchwork)
+p5 <- plot_metric(mutect_cut_all) + theme_bw() + ylim(c(0,.80)) + labs(title="F1 vs. logodds for MuTect",subtitle="Primary sample - all gold")
+p6 <- plot_metric(prior_cut_all) + theme_bw() + ylim(c(0,.80)) + labs(title="F1 vs. logodds for Prior",subtitle="Primary sample - all gold")
+p5 + p6
+```
+
+
+\newpage
+
+We can also look at specific other metrics, like the number of true positives vs. log odds:
+
+```{r alltpplots, message=F,warning=F,echo=F}
+p7 <- plot_cutpointr(mutect_cut_all,xvar=cutpoint,yvar=tp) + theme_bw() + ylim(c(0,1200)) + labs(title="True Positives vs. logodds for MuTect",subtitle="Primary sample - all gold")
+p8 <- plot_cutpointr(prior_cut_all,xvar=cutpoint,yvar=tp) + theme_bw() + ylim(c(0,1200)) + labs(title="True Positives vs. logodds for Prior",subtitle="Primary sample - all gold")
+p7 + p8
+```
+
+
+## Look at individual mutations
+
+The paper mentions two important mutations that were found in TP53 and FOXP1. The FOXP1 variant is easily called in the primary, and not seen in the relapse at all by MuTect.
+The TP53 mutant is more interesting. It is at 5.38% frequency in the relapse. The odds for the two methods are quite different for this variant. The odds from MuTect are 0.631, and for our method 2.34.
+This represents one of the very few cases in the dataset where an odds threshold of 2 misses a validated variant when called straight with MuTect, but captures the variant when using the prior.
+MuTect2, from the GATK3 installation, does not call this variant because the odds are below the threshold.
+
